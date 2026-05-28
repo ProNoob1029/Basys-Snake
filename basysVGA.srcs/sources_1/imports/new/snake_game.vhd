@@ -33,7 +33,12 @@ architecture Behavioral of snake_game is
     signal game_tick : std_logic := '0';
     
     -- Snake body array register
-    signal snake_body : snake_body_t;
+    signal snake_body : snake_body_t := (
+        0 => (x => 20, y => 12),
+        1 => (x => 19, y => 12),
+        2 => (x => 18, y => 12),
+        others => (x => 0, y => 0)
+    );
     signal snake_len  : integer range 1 to 128 := 3;
     
     -- Direction state
