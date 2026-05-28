@@ -32,6 +32,10 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 package matrix_pkg is
-    -- Defining a 2D array: 25 rows, 40 columns
-    type matrix_25x40 is array (0 to 24) of std_logic_vector(39 downto 0);
+    type coord_t is record
+        x : integer range 0 to 39;
+        y : integer range 0 to 24;
+    end record;
+    
+    type snake_body_t is array (0 to 127) of coord_t;
 end package;

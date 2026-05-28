@@ -1,36 +1,12 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date: 05.05.2026 16:29:18
--- Design Name: 
 -- Module Name: top_level - Behavioral
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
--- Description: 
--- 
--- Dependencies: 
--- 
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
--- 
+-- Description: Top-level module that instantiates the snake game controller
+--              and VGA controller, wiring the coordinate array and length signals.
 ----------------------------------------------------------------------------------
-
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.matrix_pkg.all;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity top_level is
     Port ( vga_r : out STD_LOGIC_VECTOR (3 downto 0);
@@ -60,7 +36,8 @@ component VGA is
         clk : in std_logic;
         reset : in std_logic;
         
-        input : in matrix_25x40
+        body_in : in snake_body_t;
+        len_in : in integer range 1 to 128
     );
 end component;
 
@@ -74,11 +51,13 @@ component snake_game is
         btnR : in std_logic;
         btnC : in std_logic;
         
-        grid_out : out matrix_25x40
+        body_out : out snake_body_t;
+        len_out : out integer range 1 to 128
     );
 end component;
 
-signal input : matrix_25x40;
+signal snake_body_sig : snake_body_t;
+signal snake_len_sig  : integer range 1 to 128;
 
 begin
 
@@ -90,7 +69,8 @@ snake_controller : snake_game port map (
     btnL => btnL,
     btnR => btnR,
     btnC => btnC,
-    grid_out => input
+    body_out => snake_body_sig,
+    len_out => snake_len_sig
 );
 
 vga_controller : VGA port map (
@@ -101,7 +81,8 @@ vga_controller : VGA port map (
     vga_vs => vga_vs,
     clk => clk,
     reset => reset,
-    input => input
+    body_in => snake_body_sig,
+    len_in => snake_len_sig
 );
 
 end Behavioral;

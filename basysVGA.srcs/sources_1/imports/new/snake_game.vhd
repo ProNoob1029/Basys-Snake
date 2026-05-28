@@ -1,8 +1,7 @@
 ----------------------------------------------------------------------------------
 -- Module Name: snake_game - Behavioral
--- Description: Implements movement of the snake head on a 25x40 grid.
---              Includes a 5Hz game clock divider, direction buffers,
---              position tracking with wrap-around, and grid generation.
+-- Description: Implements movement of the snake body using a 128-element
+--              coordinate shift register. Outputs snake_body_t array and length.
 ----------------------------------------------------------------------------------
 
 library IEEE;
@@ -20,7 +19,8 @@ entity snake_game is
         btnR : in std_logic;
         btnC : in std_logic;
         
-        grid_out : out matrix_25x40
+        body_out : out snake_body_t;
+        len_out : out integer range 1 to 128
     );
 end snake_game;
 
@@ -29,9 +29,9 @@ architecture Behavioral of snake_game is
     signal tick_counter : unsigned(24 downto 0) := (others => '0');
     signal game_tick : std_logic := '0';
     
-    -- Snake head coordinates (starts at center of playable area)
-    signal head_x : integer range 0 to 39 := 20;
-    signal head_y : integer range 0 to 24 := 12;
+    -- Snake body array register
+    signal snake_body : snake_body_t;
+    signal snake_len  : integer range 1 to 128 := 3;
     
     -- Direction state
     type direction_t is (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT);
@@ -76,63 +76,60 @@ begin
         end if;
     end process;
     
-    -- Update snake head position on game tick
+    -- Update snake positions on game tick
     process(clk, reset)
     begin
         if reset = '1' then
-            head_x <= 20;
-            head_y <= 12;
+            snake_body(0) <= (x => 20, y => 12);
+            snake_body(1) <= (x => 19, y => 12);
+            snake_body(2) <= (x => 18, y => 12);
+            for i in 3 to 127 loop
+                snake_body(i) <= (x => 0, y => 0);
+            end loop;
+            snake_len <= 3;
             current_dir <= DIR_RIGHT;
         elsif rising_edge(clk) then
             if game_tick = '1' then
                 current_dir <= next_dir;
                 
-                -- Move snake head and wrap within playable area (cols 1 to 38, rows 1 to 23)
+                -- Shift body
+                for i in 127 downto 1 loop
+                    snake_body(i) <= snake_body(i-1);
+                end loop;
+                
+                -- Move head and wrap
                 case next_dir is
                     when DIR_UP =>
-                        if head_y = 1 then
-                            head_y <= 23;
+                        if snake_body(0).y = 1 then
+                            snake_body(0).y <= 23;
                         else
-                            head_y <= head_y - 1;
+                            snake_body(0).y <= snake_body(0).y - 1;
                         end if;
                     when DIR_DOWN =>
-                        if head_y = 23 then
-                            head_y <= 1;
+                        if snake_body(0).y = 23 then
+                            snake_body(0).y <= 1;
                         else
-                            head_y <= head_y + 1;
+                            snake_body(0).y <= snake_body(0).y + 1;
                         end if;
                     when DIR_LEFT =>
-                        if head_x = 1 then
-                            head_x <= 38;
+                        if snake_body(0).x = 1 then
+                            snake_body(0).x <= 38;
                         else
-                            head_x <= head_x - 1;
+                            snake_body(0).x <= snake_body(0).x - 1;
                         end if;
                     when DIR_RIGHT =>
-                        if head_x = 38 then
-                            head_x <= 1;
+                        if snake_body(0).x = 38 then
+                            snake_body(0).x <= 1;
                         else
-                            head_x <= head_x + 1;
+                            snake_body(0).x <= snake_body(0).x + 1;
                         end if;
                 end case;
             end if;
         end if;
     end process;
     
-    -- Generate the grid matrix output
-    process(head_x, head_y)
-        variable temp_grid : matrix_25x40;
-    begin
-        -- Fill grid with zeros
-        for y in 0 to 24 loop
-            temp_grid(y) := (others => '0');
-        end loop;
-        
-        -- Place the snake head
-        if head_y >= 0 and head_y <= 24 and head_x >= 0 and head_x <= 39 then
-            temp_grid(head_y)(head_x) := '1';
-        end if;
-        
-        grid_out <= temp_grid;
-    end process;
-
+    -- Output assignment
+    body_out <= snake_body;
+    len_out <= snake_len;
+    
 end Behavioral;
