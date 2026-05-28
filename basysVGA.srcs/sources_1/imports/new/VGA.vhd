@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------------------
 -- Module Name: VGA - Behavioral
 -- Description: Handles VGA sync generation, scans the snake coordinate array
---              combinationally, and renders a fully connected Google Snake board.
+--              combinationally, and renders the board, snake, and red apple.
 ----------------------------------------------------------------------------------
 
 library IEEE;
@@ -21,7 +21,9 @@ entity VGA is
         reset : in std_logic;
         
         body_in : in snake_body_t;
-        len_in : in integer range 1 to 128
+        len_in : in integer range 1 to 128;
+        apple_x : in integer range 0 to 39;
+        apple_y : in integer range 0 to 24
     );
 end VGA;
 
@@ -144,6 +146,13 @@ begin
                 -- Dark green border (Google Snake style border)
                 vga_r <= X"1";
                 vga_g <= X"6";
+                vga_b <= X"1";
+            elsif (row_idx = apple_y and col_idx = apple_x and
+                   h_cnt(3 downto 0) >= 3 and h_cnt(3 downto 0) <= 12 and 
+                   v_cnt(3 downto 0) >= 3 and v_cnt(3 downto 0) <= 12) then
+                -- Bright Red Apple (centered 10x10 square)
+                vga_r <= X"F";
+                vga_g <= X"1";
                 vga_b <= X"1";
             elsif (sig_is_snake = '1' and (
                     -- Center 12x12

@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------------------
 -- Module Name: top_level - Behavioral
 -- Description: Top-level module that instantiates the snake game controller
---              and VGA controller, wiring the coordinate array and length signals.
+--              and VGA controller, wiring the snake body, length, and apple signals.
 ----------------------------------------------------------------------------------
 
 library IEEE;
@@ -37,7 +37,9 @@ component VGA is
         reset : in std_logic;
         
         body_in : in snake_body_t;
-        len_in : in integer range 1 to 128
+        len_in : in integer range 1 to 128;
+        apple_x : in integer range 0 to 39;
+        apple_y : in integer range 0 to 24
     );
 end component;
 
@@ -52,12 +54,16 @@ component snake_game is
         btnC : in std_logic;
         
         body_out : out snake_body_t;
-        len_out : out integer range 1 to 128
+        len_out : out integer range 1 to 128;
+        apple_x_out : out integer range 0 to 39;
+        apple_y_out : out integer range 0 to 24
     );
 end component;
 
 signal snake_body_sig : snake_body_t;
 signal snake_len_sig  : integer range 1 to 128;
+signal apple_x_sig    : integer range 0 to 39;
+signal apple_y_sig    : integer range 0 to 24;
 
 begin
 
@@ -70,7 +76,9 @@ snake_controller : snake_game port map (
     btnR => btnR,
     btnC => btnC,
     body_out => snake_body_sig,
-    len_out => snake_len_sig
+    len_out => snake_len_sig,
+    apple_x_out => apple_x_sig,
+    apple_y_out => apple_y_sig
 );
 
 vga_controller : VGA port map (
@@ -82,7 +90,9 @@ vga_controller : VGA port map (
     clk => clk,
     reset => reset,
     body_in => snake_body_sig,
-    len_in => snake_len_sig
+    len_in => snake_len_sig,
+    apple_x => apple_x_sig,
+    apple_y => apple_y_sig
 );
 
 end Behavioral;
