@@ -1,8 +1,9 @@
 ----------------------------------------------------------------------------------
 -- Module Name: snake_game - Behavioral
--- Description: Implements movement of the snake body using a 128-element
---              coordinate shift register, LFSR pseudo-random food generator,
---              eating collision checking, and length growth.
+-- Description: Implements movement of the snake body on a 20x12 grid using
+--              a 128-element shift register, LFSR pseudo-random food generator,
+--              eating collision checking, self-collision crash detection,
+--              and game over logic.
 ----------------------------------------------------------------------------------
 
 library IEEE;
@@ -22,8 +23,9 @@ entity snake_game is
         
         body_out : out snake_body_t;
         len_out : out integer range 1 to 128;
-        apple_x_out : out integer range 0 to 39;
-        apple_y_out : out integer range 0 to 24
+        apple_x_out : out integer range 0 to 19;
+        apple_y_out : out integer range 0 to 11;
+        game_over_out : out std_logic
     );
 end snake_game;
 
@@ -32,11 +34,11 @@ architecture Behavioral of snake_game is
     signal tick_counter : unsigned(24 downto 0) := (others => '0');
     signal game_tick : std_logic := '0';
     
-    -- Snake body array register
+    -- Snake body array register (starts at center of playable area: x=10, y=6)
     signal snake_body : snake_body_t := (
-        0 => (x => 20, y => 12),
-        1 => (x => 19, y => 12),
-        2 => (x => 18, y => 12),
+        0 => (x => 10, y => 6),
+        1 => (x => 9, y => 6),
+        2 => (x => 8, y => 6),
         others => (x => 0, y => 0)
     );
     signal snake_len  : integer range 1 to 128 := 3;
@@ -50,9 +52,12 @@ architecture Behavioral of snake_game is
     signal lfsr : std_logic_vector(15 downto 0) := X"ACE1";
     
     -- Food positions
-    signal apple_x : integer range 0 to 39 := 10;
-    signal apple_y : integer range 0 to 24 := 10;
+    signal apple_x : integer range 0 to 19 := 5;
+    signal apple_y : integer range 0 to 11 := 5;
     signal spawn_food : std_logic := '0';
+    
+    -- Game state
+    signal game_over : std_logic := '0';
     
 begin
 
@@ -95,35 +100,37 @@ begin
     -- Main synchronous process for LFSR, game tick movement, and food spawning
     process(clk, reset)
         variable feedback : std_logic;
-        variable next_head_x : integer range 0 to 39;
-        variable next_head_y : integer range 0 to 24;
-        variable cand_x : integer range 0 to 39;
-        variable cand_y : integer range 0 to 24;
+        variable next_head_x : integer range 0 to 19;
+        variable next_head_y : integer range 0 to 11;
+        variable cand_x : integer range 0 to 19;
+        variable cand_y : integer range 0 to 11;
         variable on_snake : boolean;
+        variable crash : boolean;
     begin
         if reset = '1' then
-            snake_body(0) <= (x => 20, y => 12);
-            snake_body(1) <= (x => 19, y => 12);
-            snake_body(2) <= (x => 18, y => 12);
+            snake_body(0) <= (x => 10, y => 6);
+            snake_body(1) <= (x => 9, y => 6);
+            snake_body(2) <= (x => 8, y => 6);
             for i in 3 to 127 loop
                 snake_body(i) <= (x => 0, y => 0);
             end loop;
             snake_len <= 3;
             current_dir <= DIR_RIGHT;
             lfsr <= X"ACE1";
-            apple_x <= 10;
-            apple_y <= 10;
+            apple_x <= 5;
+            apple_y <= 5;
             spawn_food <= '0';
+            game_over <= '0';
             
         elsif rising_edge(clk) then
             -- 1. LFSR shifting
             feedback := lfsr(15) xor lfsr(14) xor lfsr(12) xor lfsr(3);
             lfsr <= lfsr(14 downto 0) & feedback;
             
-            -- 2. Food spawner logic
-            if spawn_food = '1' then
-                cand_x := (to_integer(unsigned(lfsr)) mod 38) + 1;
-                cand_y := (to_integer(unsigned(lfsr(11 downto 4))) mod 23) + 1;
+            -- 2. Food spawner logic (only active when not game over)
+            if spawn_food = '1' and game_over = '0' then
+                cand_x := (to_integer(unsigned(lfsr)) mod 18) + 1; -- columns 1 to 18
+                cand_y := (to_integer(unsigned(lfsr(11 downto 4))) mod 10) + 1; -- rows 1 to 10
                 
                 on_snake := false;
                 for i in 0 to 127 loop
@@ -141,40 +148,54 @@ begin
                 end if;
             end if;
             
-            -- 3. Snake movement on game tick
-            if game_tick = '1' then
-                current_dir <= next_dir;
-                
-                -- Shift body
-                for i in 127 downto 1 loop
-                    snake_body(i) <= snake_body(i-1);
-                end loop;
-                
-                -- Calculate next head position
+            -- 3. Snake movement on game tick (only active when not game over)
+            if game_tick = '1' and game_over = '0' then
+                -- Calculate next head position (wrapping within playable boundaries 1..18, 1..10)
                 case next_dir is
                     when DIR_UP =>
-                        if snake_body(0).y = 1 then next_head_y := 23; else next_head_y := snake_body(0).y - 1; end if;
+                        if snake_body(0).y = 1 then next_head_y := 10; else next_head_y := snake_body(0).y - 1; end if;
                         next_head_x := snake_body(0).x;
                     when DIR_DOWN =>
-                        if snake_body(0).y = 23 then next_head_y := 1; else next_head_y := snake_body(0).y + 1; end if;
+                        if snake_body(0).y = 10 then next_head_y := 1; else next_head_y := snake_body(0).y + 1; end if;
                         next_head_x := snake_body(0).x;
                     when DIR_LEFT =>
-                        if snake_body(0).x = 1 then next_head_x := 38; else next_head_x := snake_body(0).x - 1; end if;
+                        if snake_body(0).x = 1 then next_head_x := 18; else next_head_x := snake_body(0).x - 1; end if;
                         next_head_y := snake_body(0).y;
                     when DIR_RIGHT =>
-                        if snake_body(0).x = 38 then next_head_x := 1; else next_head_x := snake_body(0).x + 1; end if;
+                        if snake_body(0).x = 18 then next_head_x := 1; else next_head_x := snake_body(0).x + 1; end if;
                         next_head_y := snake_body(0).y;
                 end case;
                 
-                -- Set the new head
-                snake_body(0) <= (x => next_head_x, y => next_head_y);
-                
-                -- Collision check with apple
-                if next_head_x = apple_x and next_head_y = apple_y then
-                    if snake_len < 128 then
-                        snake_len <= snake_len + 1;
+                -- Check for self-collision crash
+                crash := false;
+                for i in 1 to 127 loop
+                    if i < snake_len then
+                        if snake_body(i).x = next_head_x and snake_body(i).y = next_head_y then
+                            crash := true;
+                        end if;
                     end if;
-                    spawn_food <= '1';
+                end loop;
+                
+                if crash then
+                    game_over <= '1';
+                else
+                    current_dir <= next_dir;
+                    
+                    -- Shift body
+                    for i in 127 downto 1 loop
+                        snake_body(i) <= snake_body(i-1);
+                    end loop;
+                    
+                    -- Set the new head
+                    snake_body(0) <= (x => next_head_x, y => next_head_y);
+                    
+                    -- Collision check with apple
+                    if next_head_x = apple_x and next_head_y = apple_y then
+                        if snake_len < 128 then
+                            snake_len <= snake_len + 1;
+                        end if;
+                        spawn_food <= '1';
+                    end if;
                 end if;
             end if;
         end if;
@@ -185,5 +206,6 @@ begin
     len_out <= snake_len;
     apple_x_out <= apple_x;
     apple_y_out <= apple_y;
+    game_over_out <= game_over;
     
 end Behavioral;

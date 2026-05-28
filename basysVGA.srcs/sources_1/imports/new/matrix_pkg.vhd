@@ -33,8 +33,8 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 package matrix_pkg is
     type coord_t is record
-        x : integer range 0 to 39;
-        y : integer range 0 to 24;
+        x : integer range 0 to 19;
+        y : integer range 0 to 11;
     end record;
     
     type snake_body_t is array (0 to 127) of coord_t;
