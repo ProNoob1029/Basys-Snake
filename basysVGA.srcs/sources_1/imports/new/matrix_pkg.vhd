@@ -38,4 +38,6 @@ package matrix_pkg is
     end record;
     
     type snake_body_t is array (0 to 127) of coord_t;
+    
+    type direction_t is (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT);
 end package;
